@@ -20,7 +20,8 @@ def initialize_database():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'patient'
         )
     ''')
 
@@ -72,50 +73,107 @@ def initialize_database():
         )
     ''')
 
+    # 6. Bảng Medical Records (Hồ sơ Bệnh án)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS medical_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_name TEXT,
+            doctor_name TEXT,
+            date TEXT,
+            diagnosis TEXT,
+            prescription TEXT
+        )
+    ''')
+
     # Thêm dữ liệu mẫu (Dummy Data) nếu bảng rỗng
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
-        # Tài khoản mặc định
-        cursor.execute("INSERT INTO users (email, password) VALUES ('admin@healthcare.com', 'admin123')")
+        # Tài khoản mặc định cho các role
+        users_data = [
+            ('admin@healthcare.com', 'admin123', 'admin'),
+            ('doctor@healthcare.com', 'doctor123', 'doctor'),
+            ('patient@healthcare.com', 'patient123', 'patient')
+        ]
+        cursor.executemany("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", users_data)
         
         # Bệnh nhân mẫu
         patients = [
-            ("John Smith", "45", "Male", "555-0101", "2026-04-10"),
-            ("Emma Johnson", "32", "Female", "555-0102", "2026-04-11"),
-            ("Robert Brown", "58", "Male", "555-0103", "2026-04-13"),
-            ("Sarah Williams", "29", "Female", "555-0104", "2026-04-14"),
-            ("Michael Davis", "62", "Male", "555-0105", "2026-04-15"),
+            ("Nguyễn Văn An", "45", "Nam", "0901234567", "2026-04-10"),
+            ("Trần Thị Bình", "32", "Nữ", "0912345678", "2026-04-11"),
+            ("Lê Hoàng Châu", "58", "Nam", "0923456789", "2026-04-13"),
+            ("Phạm Minh Đức", "29", "Nam", "0934567890", "2026-04-14"),
+            ("Hoàng Thị Én", "62", "Nữ", "0945678901", "2026-04-15"),
+            ("Vũ Đức Phúc", "41", "Nam", "0981234567", "2026-04-16"),
+            ("Đặng Thu Hà", "27", "Nữ", "0972345678", "2026-04-17"),
+            ("Bùi Anh Tuấn", "50", "Nam", "0963456789", "2026-04-18"),
+            ("Đỗ Mỹ Linh", "34", "Nữ", "0954567890", "2026-04-19"),
+            ("Hồ Quang Hiếu", "48", "Nam", "0945678901", "2026-04-20"),
+            ("Ngô Kiến Huy", "39", "Nam", "0936789012", "2026-04-21"),
+            ("Dương Tú Anh", "25", "Nữ", "0927890123", "2026-04-22"),
+            ("Lý Nhã Kỳ", "44", "Nữ", "0918901234", "2026-04-23"),
+            ("Mai Phương Thúy", "36", "Nữ", "0909012345", "2026-04-24"),
+            ("Đoàn Văn Hậu", "28", "Nam", "0890123456", "2026-04-25"),
+            ("Trịnh Kim Chi", "55", "Nữ", "0881234567", "2026-04-26"),
+            ("Tạ Quang Bửu", "70", "Nam", "0872345678", "2026-04-27"),
+            ("Lâm Tâm Như", "42", "Nữ", "0863456789", "2026-04-28"),
+            ("Đinh Ngọc Diệp", "33", "Nữ", "0854567890", "2026-04-29"),
+            ("Trương Nam Thành", "31", "Nam", "0845678901", "2026-04-30")
         ]
         cursor.executemany("INSERT INTO patients (name, age, gender, contact, last_visit) VALUES (?, ?, ?, ?, ?)", patients)
 
         # Bác sĩ mẫu
         doctors = [
-            ("Dr. Sarah Wilson", "Cardiology", "12 years", "555-1001", "Available"),
-            ("Dr. Michael Chen", "Pediatrics", "8 years", "555-1002", "Available"),
-            ("Dr. James Lee", "Orthopedics", "15 years", "555-1003", "On Leave"),
-            ("Dr. Emily Davis", "Neurology", "10 years", "555-1004", "Available"),
+            ("BS. Trần Thanh Tâm", "Tim mạch", "12 năm", "0988111222", "Sẵn sàng"),
+            ("BS. Nguyễn Văn Bảo", "Nhi khoa", "8 năm", "0977111333", "Sẵn sàng"),
+            ("BS. Lê Hoàng Yến", "Chỉnh hình", "15 năm", "0966111444", "Nghỉ phép"),
+            ("BS. Phạm Gia Khiêm", "Thần kinh", "10 năm", "0955111555", "Sẵn sàng"),
         ]
         cursor.executemany("INSERT INTO doctors (name, specialty, experience, contact, status) VALUES (?, ?, ?, ?, ?)", doctors)
 
         # Lịch hẹn mẫu
         appointments = [
-            ("John Smith", "Dr. Sarah Wilson", "2026-04-13", "09:00 AM", "Checkup", "Completed"),
-            ("Emma Johnson", "Dr. Michael Chen", "2026-04-13", "10:30 AM", "Follow-up", "Completed"),
-            ("Robert Brown", "Dr. Sarah Wilson", "2026-04-14", "02:00 PM", "Consultation", "In Progress"),
-            ("Lisa Anderson", "Dr. James Lee", "2026-04-15", "03:30 PM", "Checkup", "Scheduled"),
-            ("David Martinez", "Dr. Emily Davis", "2026-04-15", "04:00 PM", "Checkup", "Scheduled"),
+            ("Nguyễn Văn An", "BS. Trần Thanh Tâm", "2026-04-13", "09:00 AM", "Khám định kỳ", "Hoàn thành"),
+            ("Trần Thị Bình", "BS. Nguyễn Văn Bảo", "2026-04-13", "10:30 AM", "Tái khám", "Hoàn thành"),
+            ("Lê Hoàng Châu", "BS. Trần Thanh Tâm", "2026-04-14", "02:00 PM", "Tư vấn", "Đang tiến hành"),
+            ("Phạm Minh Đức", "BS. Lê Hoàng Yến", "2026-04-15", "03:30 PM", "Khám định kỳ", "Đã lên lịch"),
+            ("Hoàng Thị Én", "BS. Phạm Gia Khiêm", "2026-04-15", "04:00 PM", "Khám định kỳ", "Đã lên lịch"),
         ]
         cursor.executemany("INSERT INTO appointments (patient_name, doctor_name, date, time, type, status) VALUES (?, ?, ?, ?, ?, ?)", appointments)
 
         # Dịch vụ mẫu
         services = [
-            ("General Checkup", "Basic", "$50", "30 mins"),
-            ("Blood Test", "Lab", "$30", "15 mins"),
-            ("MRI Scan", "Imaging", "$250", "60 mins"),
-            ("X-Ray", "Imaging", "$100", "20 mins"),
-            ("Physical Therapy", "Therapy", "$80", "45 mins"),
+            ("Khám tổng quát", "Cơ bản", "500,000đ", "30 phút"),
+            ("Xét nghiệm máu", "Xét nghiệm", "300,000đ", "15 phút"),
+            ("Chụp MRI", "Hình ảnh", "2,500,000đ", "60 phút"),
+            ("Chụp X-Quang", "Hình ảnh", "1,000,000đ", "20 phút"),
+            ("Vật lý trị liệu", "Điều trị", "800,000đ", "45 phút"),
         ]
         cursor.executemany("INSERT INTO services (name, category, price, duration) VALUES (?, ?, ?, ?)", services)
+
+        # Hồ sơ Bệnh án mẫu (Dành cho các ca đã Hoàn thành)
+        records = [
+            ("Nguyễn Văn An", "BS. Trần Thanh Tâm", "2026-04-13", "Cao huyết áp nhẹ", "Amlodipine 5mg, Uống 1 viên/ngày"),
+            ("Trần Thị Bình", "BS. Nguyễn Văn Bảo", "2026-04-13", "Viêm họng hạt", "Amoxicillin 500mg, Uống 2 viên/ngày"),
+            ("Lê Hoàng Châu", "BS. Trần Thanh Tâm", "2026-04-14", "Rối loạn nhịp tim", "Concor 2.5mg, Uống 1 viên/sáng"),
+            ("Phạm Minh Đức", "BS. Lê Hoàng Yến", "2026-04-14", "Thoái hóa đốt sống cổ", "Meloxicam 7.5mg, Nghỉ ngơi"),
+            ("Hoàng Thị Én", "BS. Phạm Gia Khiêm", "2026-04-15", "Đau đầu vận mạch", "Paracetamol 500mg, Ngủ đủ giấc"),
+            ("Vũ Đức Phúc", "BS. Nguyễn Văn Bảo", "2026-04-15", "Viêm mũi dị ứng", "Loratadine 10mg, Xịt mũi"),
+            ("Đặng Thu Hà", "BS. Lê Hoàng Yến", "2026-04-16", "Trật khớp cổ chân", "Chườm đá, Băng gạc cố định"),
+            ("Bùi Anh Tuấn", "BS. Phạm Gia Khiêm", "2026-04-16", "Rối loạn lo âu", "Diazepam 5mg, Trị liệu tâm lý"),
+            ("Đỗ Mỹ Linh", "BS. Trần Thanh Tâm", "2026-04-17", "Thiếu máu cơ tim", "Aspirin 81mg, Hạn chế vận động mạnh"),
+            ("Hồ Quang Hiếu", "BS. Nguyễn Văn Bảo", "2026-04-17", "Cảm cúm siêu vi", "Vitamin C, Oresol, Nghỉ ngơi 3 ngày"),
+            ("Ngô Kiến Huy", "BS. Lê Hoàng Yến", "2026-04-18", "Viêm gân gót chân", "Ibuprofen 400mg, Vật lý trị liệu"),
+            ("Dương Tú Anh", "BS. Phạm Gia Khiêm", "2026-04-18", "Chóng mặt tư thế", "Betahistine 16mg, Tránh thay đổi tư thế đột ngột"),
+            ("Trịnh Thăng Bình", "BS. Trần Thanh Tâm", "2026-04-19", "Suy tĩnh mạch chi dưới", "Daflon 500mg, Mang vớ tĩnh mạch"),
+            ("Phan Đình Tùng", "BS. Nguyễn Văn Bảo", "2026-04-19", "Viêm phế quản cấp", "Azithromycin 500mg, Siro ho"),
+            ("Khởi My", "BS. Lê Hoàng Yến", "2026-04-20", "Gãy xương quai xanh", "Cố định xương, Canxi D3, Tái khám sau 2 tuần"),
+            ("Đông Nhi", "BS. Phạm Gia Khiêm", "2026-04-20", "Suy nhược thần kinh", "Ginkgo Biloba 120mg, Magne B6"),
+            ("Ông Cao Thắng", "BS. Trần Thanh Tâm", "2026-04-21", "Mỡ máu cao", "Atorvastatin 20mg, Tập thể dục, Ăn kiêng"),
+            ("Bảo Thy", "BS. Nguyễn Văn Bảo", "2026-04-21", "Sốt xuất huyết Dengue", "Hạ sốt, Truyền dịch, Theo dõi tại bệnh viện"),
+            ("Minh Hằng", "BS. Lê Hoàng Yến", "2026-04-22", "Giãn dây chằng gối", "Đeo nẹp, Glucosamine, Nghỉ ngơi"),
+            ("Chi Pu", "BS. Phạm Gia Khiêm", "2026-04-22", "Động kinh vắng ý thức", "Valproate 500mg, Tránh lái xe, Không thức khuya"),
+        ]
+        cursor.executemany("INSERT INTO medical_records (patient_name, doctor_name, date, diagnosis, prescription) VALUES (?, ?, ?, ?, ?)", records)
 
     conn.commit()
     conn.close()
@@ -125,13 +183,15 @@ def initialize_database():
 # ==========================================
 
 def authenticate(email, password):
-    """Kiểm tra đăng nhập"""
+    """Kiểm tra đăng nhập và trả về role"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
+    cursor.execute("SELECT role FROM users WHERE email = ? AND password = ?", (email, password))
     user = cursor.fetchone()
     conn.close()
-    return user is not None
+    if user:
+        return user[0] # Trả về role ('admin', 'doctor', 'patient')
+    return None
 
 def get_patients(search_query=""):
     conn = get_connection()
@@ -181,10 +241,13 @@ def delete_doctor(name):
     conn.commit()
     conn.close()
 
-def get_doctor_names():
+def get_doctor_names(only_available=False):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM doctors")
+    if only_available:
+        cursor.execute("SELECT name FROM doctors WHERE status='Sẵn sàng'")
+    else:
+        cursor.execute("SELECT name FROM doctors")
     data = [row[0] for row in cursor.fetchall()]
     conn.close()
     return data
@@ -200,7 +263,7 @@ def get_patient_names():
 def get_appointments():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT patient_name, doctor_name, date, type, status FROM appointments")
+    cursor.execute("SELECT patient_name, doctor_name, date, time, type, status FROM appointments")
     data = cursor.fetchall()
     conn.close()
     return data
@@ -215,10 +278,45 @@ def add_appointment(patient_name, doctor_name, date, time, app_type, status):
     conn.commit()
     conn.close()
 
+def get_appointment_options():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, patient_name, doctor_name, date, time FROM appointments")
+    data = [f"[{row[0]}] {row[1]} gặp {row[2]} ({row[3]} {row[4]})" for row in cursor.fetchall()]
+    conn.close()
+    return data
+
+def delete_appointment(app_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM appointments WHERE id = ?", (app_id,))
+    conn.commit()
+    conn.close()
+
+def update_appointment_status(app_id, status):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE appointments SET status = ? WHERE id = ?", (status, app_id))
+    conn.commit()
+    conn.close()
+
+def check_appointment_conflict(doctor_name, date, time):
+    """Kiểm tra trùng lịch: Trả về True nếu bác sĩ đã có lịch khám vào giờ này"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Chỉ kiểm tra các lịch hẹn chưa hoàn thành/hủy
+    cursor.execute('''
+        SELECT COUNT(*) FROM appointments 
+        WHERE doctor_name = ? AND date = ? AND time = ? AND status != 'Completed'
+    ''', (doctor_name, date, time))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
+
 def get_recent_appointments():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT patient_name, doctor_name, time, status FROM appointments LIMIT 5")
+    cursor.execute("SELECT patient_name, doctor_name, time, status FROM appointments ORDER BY id DESC LIMIT 5")
     data = cursor.fetchall()
     conn.close()
     return data
@@ -231,6 +329,28 @@ def get_services():
     conn.close()
     return data
 
+def add_service(name, category, price, duration):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO services (name, category, price, duration) VALUES (?, ?, ?, ?)", (name, category, price, duration))
+    conn.commit()
+    conn.close()
+
+def get_service_names():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM services")
+    data = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return data
+
+def delete_service(name):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM services WHERE name = ?", (name,))
+    conn.commit()
+    conn.close()
+
 def get_dashboard_stats():
     conn = get_connection()
     cursor = conn.cursor()
@@ -238,11 +358,11 @@ def get_dashboard_stats():
     cursor.execute("SELECT COUNT(*) FROM patients")
     total_patients = cursor.fetchone()[0]
     
-    cursor.execute("SELECT COUNT(*) FROM doctors WHERE status='Available'")
+    cursor.execute("SELECT COUNT(*) FROM doctors WHERE status='Sẵn sàng'")
     active_doctors = cursor.fetchone()[0]
     
     # Đếm lịch hẹn ngày hôm nay (giả định dùng ngày 2026-04-15 hoặc đếm tổng tùy ý)
-    cursor.execute("SELECT COUNT(*) FROM appointments WHERE status='Scheduled'")
+    cursor.execute("SELECT COUNT(*) FROM appointments WHERE date = date('now')")
     scheduled_appointments = cursor.fetchone()[0]
     
     conn.close()
@@ -251,5 +371,26 @@ def get_dashboard_stats():
         "total_patients": f"{total_patients:,}",
         "active_doctors": str(active_doctors),
         "appointments_today": str(scheduled_appointments),
-        "revenue": "$45,231" # Có thể tính tổng thực tế sau này
+        "revenue": "45,231,000đ" # Có thể tính tổng thực tế sau này
     }
+
+def get_medical_records(search_query=""):
+    conn = get_connection()
+    cursor = conn.cursor()
+    if search_query:
+        cursor.execute("SELECT patient_name, doctor_name, date, diagnosis, prescription FROM medical_records WHERE patient_name LIKE ?", ('%' + search_query + '%',))
+    else:
+        cursor.execute("SELECT patient_name, doctor_name, date, diagnosis, prescription FROM medical_records")
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+def add_medical_record(patient_name, doctor_name, date, diagnosis, prescription):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO medical_records (patient_name, doctor_name, date, diagnosis, prescription) 
+        VALUES (?, ?, ?, ?, ?)
+    ''', (patient_name, doctor_name, date, diagnosis, prescription))
+    conn.commit()
+    conn.close()

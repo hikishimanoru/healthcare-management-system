@@ -67,10 +67,10 @@ class HealthcareApp:
         icon_label.place(relx=0.5, rely=0.5, anchor="center")
 
         # Titles
-        title = ctk.CTkLabel(card, text="Healthcare Management\nSystem", font=("Segoe UI", 22, "bold"), text_color=TEXT_MAIN, justify="center")
+        title = ctk.CTkLabel(card, text="Hệ Thống Quản Lý\nPhòng Khám", font=("Segoe UI", 22, "bold"), text_color=TEXT_MAIN, justify="center")
         title.pack(pady=(0, 5))
 
-        subtitle = ctk.CTkLabel(card, text="Sign in to continue", font=("Segoe UI", 14), text_color=TEXT_SUB)
+        subtitle = ctk.CTkLabel(card, text="Đăng nhập để tiếp tục", font=("Segoe UI", 14), text_color=TEXT_SUB)
         subtitle.pack(pady=(0, 35))
 
         # Inputs
@@ -84,11 +84,11 @@ class HealthcareApp:
         )
         self.email_entry.pack(pady=(5, 15), padx=45)
 
-        password_label = ctk.CTkLabel(card, text="Password", font=("Segoe UI", 12, "bold"), text_color=TEXT_MAIN)
+        password_label = ctk.CTkLabel(card, text="Mật khẩu", font=("Segoe UI", 12, "bold"), text_color=TEXT_MAIN)
         password_label.pack(anchor="w", padx=45)
 
         self.password_entry = ctk.CTkEntry(
-            card, placeholder_text="Enter password", show="*", 
+            card, placeholder_text="Nhập mật khẩu", show="*", 
             width=330, height=45, font=("Segoe UI", 14), 
             border_color=BORDER_COLOR, border_width=1, fg_color="#f8fafc", corner_radius=8
         )
@@ -96,7 +96,7 @@ class HealthcareApp:
 
         # Login button
         login_btn = ctk.CTkButton(
-            card, text="Sign In", width=330, height=45, 
+            card, text="Đăng nhập", width=330, height=45, 
             font=("Segoe UI", 15, "bold"), fg_color=PRIMARY_COLOR, 
             hover_color="#1d4ed8", corner_radius=8, command=self.handle_login
         )
@@ -106,10 +106,12 @@ class HealthcareApp:
         email = self.email_entry.get()
         password = self.password_entry.get()
         
-        if database.authenticate(email, password):
+        role = database.authenticate(email, password)
+        if role:
+            self.current_role = role
             self.show_dashboard()
         else:
-            messagebox.showerror("Login Failed", "Invalid email or password.\n\nHint: Use admin@healthcare.com / admin123")
+            messagebox.showerror("Đăng nhập thất bại", "Email hoặc mật khẩu không đúng.\n\nGợi ý:\nQuản trị: admin@healthcare.com / admin123\nBác sĩ: doctor@healthcare.com / doctor123\nBệnh nhân: patient@healthcare.com / patient123")
 
     # ======================
     # DASHBOARD LAYOUT
@@ -135,18 +137,35 @@ class HealthcareApp:
         title_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
         title_frame.pack(fill="x", pady=25, padx=25)
         
-        title = ctk.CTkLabel(title_frame, text="🏥 Healthcare System", font=("Segoe UI", 18, "bold"), text_color=TEXT_MAIN)
+        title = ctk.CTkLabel(title_frame, text="🏥 Quản Lý Phòng Khám", font=("Segoe UI", 18, "bold"), text_color=TEXT_MAIN)
         title.pack(side="left")
 
         # Menu Items
         self.menu_buttons = []
-        menu_items = [
-            ("Dashboard", "📊", self.page_dashboard),
-            ("Patients", "👥", self.page_patients),
-            ("Doctors", "⚕️", self.page_doctors),
-            ("Appointments", "📅", self.page_appointments),
-            ("Services", "🏥", self.page_services),
-        ]
+        role = getattr(self, 'current_role', 'patient')
+        
+        if role == 'admin':
+            menu_items = [
+                ("Tổng quan", "📊", self.page_dashboard),
+                ("Bệnh nhân", "👥", self.page_patients),
+                ("Bác sĩ", "⚕️", self.page_doctors),
+                ("Lịch hẹn", "📅", self.page_appointments),
+                ("Bệnh án", "📋", self.page_medical_records),
+                ("Dịch vụ", "🏥", self.page_services),
+            ]
+        elif role == 'doctor':
+            menu_items = [
+                ("Tổng quan", "📊", self.page_dashboard),
+                ("Bệnh nhân", "👥", self.page_patients),
+                ("Lịch hẹn", "📅", self.page_appointments),
+                ("Bệnh án", "📋", self.page_medical_records),
+            ]
+        else: # patient
+            menu_items = [
+                ("Lịch hẹn", "📅", self.page_appointments),
+                ("Bệnh án", "📋", self.page_medical_records),
+                ("Dịch vụ", "🏥", self.page_services),
+            ]
 
         for i, (name, icon, cmd) in enumerate(menu_items):
             btn = ctk.CTkButton(
@@ -168,7 +187,7 @@ class HealthcareApp:
         # Logout
         logout_btn = ctk.CTkButton(
             sidebar,
-            text="   🚪   Logout",
+            text="   🚪   Đăng xuất",
             anchor="w",
             width=220,
             height=45,
@@ -203,7 +222,10 @@ class HealthcareApp:
         self.content_area.grid(row=1, column=0, sticky="nsew")
 
         # Initial page
-        self.nav_click(self.page_dashboard, 0)
+        if getattr(self, 'current_role', 'patient') == 'patient':
+            self.nav_click(self.page_appointments, 0)
+        else:
+            self.nav_click(self.page_dashboard, 0)
 
     def nav_click(self, cmd, idx):
         # Update button styles
@@ -228,17 +250,17 @@ class HealthcareApp:
     # ======================
     def page_dashboard(self):
         self.clear_content()
-        self.set_header("Dashboard", "Overview of your healthcare system")
+        self.set_header("Tổng quan", "Toàn cảnh hoạt động của phòng khám")
 
         self.content_area.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
         # Stats Cards
         db_stats = database.get_dashboard_stats()
         stats = [
-            ("Total Patients", db_stats["total_patients"], "👥", "+12%", "#16a34a", "#dcfce7", "#16a34a"),
-            ("Active Doctors", db_stats["active_doctors"], "⚕️", "+3%", "#16a34a", "#e0f2fe", "#0284c7"),
-            ("Appointments Today", db_stats["appointments_today"], "📅", "-5%", "#dc2626", "#ffedd5", "#ea580c"),
-            ("Revenue", db_stats["revenue"], "📈", "+18%", "#16a34a", "#f3e8ff", "#9333ea")
+            ("Tổng Bệnh nhân", db_stats["total_patients"], "👥", "+12%", "#16a34a", "#dcfce7", "#16a34a"),
+            ("Bác sĩ hoạt động", db_stats["active_doctors"], "⚕️", "+3%", "#16a34a", "#e0f2fe", "#0284c7"),
+            ("Lịch hẹn hôm nay", db_stats["appointments_today"], "📅", "-5%", "#dc2626", "#ffedd5", "#ea580c"),
+            ("Doanh thu", db_stats["revenue"], "📈", "+18%", "#16a34a", "#f3e8ff", "#9333ea")
         ]
 
         for i, (title, value, icon, change, change_color, icon_bg, icon_color) in enumerate(stats):
@@ -277,10 +299,10 @@ class HealthcareApp:
         )
         recent_frame.grid(row=1, column=0, columnspan=4, sticky="nsew", pady=30)
         
-        recent_title = ctk.CTkLabel(recent_frame, text="Recent Appointments", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
+        recent_title = ctk.CTkLabel(recent_frame, text="Lịch hẹn gần đây", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
         recent_title.pack(anchor="w", padx=25, pady=20)
 
-        columns = ["Patient", "Doctor", "Time", "Status"]
+        columns = ["Bệnh nhân", "Bác sĩ", "Giờ khám", "Trạng thái"]
         data = database.get_recent_appointments()
 
         self.create_custom_table(recent_frame, columns, data)
@@ -288,60 +310,116 @@ class HealthcareApp:
     # ======================
     # CUSTOM TABLE TEMPLATE
     # ======================
-    def create_custom_table(self, parent, columns, data):
+    def create_custom_table(self, parent, columns, data, items_per_page=8):
         # Create a single grid frame for perfect column alignment
-        table_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        table_frame.pack(fill="both", expand=True, padx=20, pady=15)
+        main_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        pagination_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        pagination_frame.pack(side="bottom", fill="x", pady=(10, 0))
+
+        table_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        table_frame.pack(side="top", fill="both", expand=True)
 
         col_widths = [2, 2, 1, 1] if len(columns) == 4 else [1] * len(columns)
         
-        for i, width in enumerate(col_widths):
-            table_frame.grid_columnconfigure(i, weight=width, uniform="colGroup")
-            
-        # Header
-        for i, col in enumerate(columns):
-            lbl = ctk.CTkLabel(table_frame, text=col, font=("Segoe UI", 13, "bold"), text_color=TEXT_SUB, anchor="w")
-            lbl.grid(row=0, column=i, sticky="w", padx=10, pady=(0, 10))
+        total_pages = max(1, (len(data) + items_per_page - 1) // items_per_page)
+        state = {"page": 0}
+        
+        def render_page():
+            for widget in table_frame.winfo_children():
+                widget.destroy()
+                
+            for i, width in enumerate(col_widths):
+                table_frame.grid_columnconfigure(i, weight=width, uniform="colGroup")
+                
+            # Header
+            for i, col in enumerate(columns):
+                lbl = ctk.CTkLabel(table_frame, text=col, font=("Segoe UI", 13, "bold"), text_color=TEXT_SUB, anchor="w")
+                lbl.grid(row=0, column=i, sticky="w", padx=10, pady=(0, 10))
 
-        # Header bottom border
-        header_border = ctk.CTkFrame(table_frame, fg_color=BORDER_COLOR, height=1)
-        header_border.grid(row=1, column=0, columnspan=len(columns), sticky="ew", pady=(0, 10))
+            # Header bottom border
+            header_border = ctk.CTkFrame(table_frame, fg_color=BORDER_COLOR, height=1)
+            header_border.grid(row=1, column=0, columnspan=len(columns), sticky="ew", pady=(0, 10))
 
-        # Rows
-        current_row = 2
-        for r_idx, row in enumerate(data):
-            for i, val in enumerate(row):
-                if columns[i] == "Status":
-                    status_colors = {
-                        "Completed": ("#dcfce7", "#16a34a"),
-                        "In Progress": ("#dbeafe", "#2563eb"),
-                        "Scheduled": ("#f3e8ff", "#9333ea")
-                    }
-                    bg, fg = status_colors.get(val, ("#f1f5f9", TEXT_SUB))
-                    
-                    status_frame = ctk.CTkFrame(table_frame, fg_color=bg, corner_radius=10)
-                    status_frame.grid(row=current_row, column=i, sticky="w", padx=10, pady=8)
-                    
-                    lbl = ctk.CTkLabel(status_frame, text=val, font=("Segoe UI", 12, "bold"), text_color=fg)
-                    lbl.pack(padx=12, pady=3)
-                else:
-                    lbl = ctk.CTkLabel(table_frame, text=val, font=("Segoe UI", 14), text_color=TEXT_MAIN, anchor="w")
-                    lbl.grid(row=current_row, column=i, sticky="w", padx=10, pady=12)
-            
-            current_row += 1
-            
-            # Row border
-            if r_idx < len(data) - 1:
-                border = ctk.CTkFrame(table_frame, fg_color="#f1f5f9", height=1)
-                border.grid(row=current_row, column=0, columnspan=len(columns), sticky="ew")
+            start_idx = state["page"] * items_per_page
+            end_idx = start_idx + items_per_page
+            page_data = data[start_idx:end_idx]
+
+            # Rows
+            current_row = 2
+            for r_idx, row in enumerate(page_data):
+                for i, val in enumerate(row):
+                    if columns[i] in ["Status", "Trạng thái"]:
+                        status_colors = {
+                            "Hoàn thành": ("#dcfce7", "#16a34a"),
+                            "Đang tiến hành": ("#dbeafe", "#2563eb"),
+                            "Đã lên lịch": ("#f3e8ff", "#9333ea"),
+                            "Sẵn sàng": ("#dcfce7", "#16a34a"),
+                            "Nghỉ phép": ("#fee2e2", "#ef4444"),
+                            "Đã hủy": ("#fee2e2", "#ef4444")
+                        }
+                        bg, fg = status_colors.get(val, ("#f1f5f9", TEXT_SUB))
+                        
+                        status_frame = ctk.CTkFrame(table_frame, fg_color=bg, corner_radius=10)
+                        status_frame.grid(row=current_row, column=i, sticky="w", padx=10, pady=8)
+                        
+                        lbl = ctk.CTkLabel(status_frame, text=val, font=("Segoe UI", 12, "bold"), text_color=fg)
+                        lbl.pack(padx=12, pady=3)
+                    else:
+                        lbl = ctk.CTkLabel(table_frame, text=str(val), font=("Segoe UI", 14), text_color=TEXT_MAIN, anchor="w")
+                        lbl.grid(row=current_row, column=i, sticky="w", padx=10, pady=12)
+                
                 current_row += 1
+                
+                # Row border
+                if r_idx < len(page_data) - 1:
+                    border = ctk.CTkFrame(table_frame, fg_color="#f1f5f9", height=1)
+                    border.grid(row=current_row, column=0, columnspan=len(columns), sticky="ew")
+                    current_row += 1
+            
+            # Update Pagination controls
+            for widget in pagination_frame.winfo_children():
+                widget.destroy()
+                
+            if total_pages > 1:
+                prev_btn = ctk.CTkButton(
+                    pagination_frame, text="◀ Trước", width=80, 
+                    fg_color=PRIMARY_COLOR if state["page"] > 0 else "#cbd5e1",
+                    hover_color="#1d4ed8" if state["page"] > 0 else "#cbd5e1",
+                    command=go_prev
+                )
+                prev_btn.pack(side="left", padx=10)
+                
+                info_lbl = ctk.CTkLabel(pagination_frame, text=f"Trang {state['page'] + 1} / {total_pages}", font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN)
+                info_lbl.pack(side="left", expand=True)
+                
+                next_btn = ctk.CTkButton(
+                    pagination_frame, text="Sau ▶", width=80,
+                    fg_color=PRIMARY_COLOR if state["page"] < total_pages - 1 else "#cbd5e1",
+                    hover_color="#1d4ed8" if state["page"] < total_pages - 1 else "#cbd5e1",
+                    command=go_next
+                )
+                next_btn.pack(side="right", padx=10)
+
+        def go_prev():
+            if state["page"] > 0:
+                state["page"] -= 1
+                render_page()
+
+        def go_next():
+            if state["page"] < total_pages - 1:
+                state["page"] += 1
+                render_page()
+
+        render_page()
 
     # ======================
     # OTHER PAGES
     # ======================
     def page_patients(self):
         self.clear_content()
-        self.set_header("Patients", "Manage patient records and details")
+        self.set_header("Bệnh nhân", "Quản lý hồ sơ và chi tiết bệnh nhân")
 
         # Action Bar
         action_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
@@ -350,30 +428,31 @@ class HealthcareApp:
         # Search Entry
         self.search_var = tk.StringVar()
         search_entry = ctk.CTkEntry(
-            action_frame, placeholder_text="Search by name...", width=250, 
+            action_frame, placeholder_text="Tìm theo tên...", width=250, 
             textvariable=self.search_var, border_color=BORDER_COLOR
         )
         search_entry.pack(side="left", padx=(0, 10))
         
         search_btn = ctk.CTkButton(
-            action_frame, text="🔍 Search", font=("Segoe UI", 13, "bold"), width=100,
+            action_frame, text="🔍 Tìm kiếm", font=("Segoe UI", 13, "bold"), width=100,
             command=self.refresh_patients_table
         )
         search_btn.pack(side="left")
         
         add_btn = ctk.CTkButton(
-            action_frame, text="➕ Add Patient", font=("Segoe UI", 14, "bold"),
+            action_frame, text="➕ Thêm Bệnh nhân", font=("Segoe UI", 14, "bold"),
             fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
             command=self.show_add_patient_dialog
         )
         add_btn.pack(side="right")
         
-        export_btn = ctk.CTkButton(
-            action_frame, text="📥 Export CSV", font=("Segoe UI", 14, "bold"),
-            fg_color="#10b981", hover_color="#059669", corner_radius=8,
-            command=self.export_patients_csv
-        )
-        export_btn.pack(side="right", padx=(0, 10))
+        if getattr(self, 'current_role', 'patient') == 'admin':
+            export_btn = ctk.CTkButton(
+                action_frame, text="📥 Xuất CSV", font=("Segoe UI", 14, "bold"),
+                fg_color="#10b981", hover_color="#059669", corner_radius=8,
+                command=self.export_patients_csv
+            )
+            export_btn.pack(side="right", padx=(0, 10))
 
         self.patients_table_frame = ctk.CTkFrame(self.content_area, fg_color=SURFACE_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
         self.patients_table_frame.pack(fill="both", expand=True)
@@ -385,58 +464,58 @@ class HealthcareApp:
             widget.destroy()
             
         query = self.search_var.get()
-        columns = ["Name", "Age", "Gender", "Contact", "Last Visit"]
+        columns = ["Họ tên", "Tuổi", "Giới tính", "Liên hệ", "Khám lần cuối"]
         data = database.get_patients(query)
         self.create_custom_table(self.patients_table_frame, columns, data)
 
     def export_patients_csv(self):
         data = database.get_patients() # Get all without filter or use self.search_var.get() if you want filtered export
         if not data:
-            messagebox.showinfo("Export", "No data to export.")
+            messagebox.showinfo("Export", "Không có dữ liệu để xuất.")
             return
             
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
-            title="Export Patients Data",
-            initialfile="patients_data.csv"
+            title="Xuất Dữ liệu Bệnh nhân",
+            initialfile="du_lieu_benh_nhan.csv"
         )
         if filepath:
             try:
                 with open(filepath, mode='w', newline='', encoding='utf-8') as file:
                     writer = csv.writer(file)
-                    writer.writerow(["Name", "Age", "Gender", "Contact", "Last Visit"])
+                    writer.writerow(["Họ tên", "Tuổi", "Giới tính", "Liên hệ", "Khám lần cuối"])
                     writer.writerows(data)
-                messagebox.showinfo("Success", "Data exported successfully!")
+                messagebox.showinfo("Thành công", "Đã xuất dữ liệu thành công!")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to export data: {e}")
+                messagebox.showerror("Lỗi", f"Không thể xuất dữ liệu: {e}")
 
     def show_add_patient_dialog(self):
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Add New Patient")
+        dialog.title("Thêm Bệnh nhân mới")
         dialog.geometry("420x550")
         dialog.configure(fg_color=BG_COLOR)
         dialog.grab_set() # Chặn click vào cửa sổ chính
         dialog.focus()
         
-        title = ctk.CTkLabel(dialog, text="Patient Information", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
+        title = ctk.CTkLabel(dialog, text="Thông tin Bệnh nhân", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
         title.pack(pady=(25, 15))
         
         # Form Inputs
         entries = {}
         fields = [
-            ("Name", "e.g. Alex Johnson"), 
-            ("Age", "e.g. 35"), 
-            ("Gender", "e.g. Male / Female"), 
-            ("Contact", "e.g. 555-0199"), 
-            ("Last Visit", "e.g. 2026-04-20")
+            ("Họ tên", "Ví dụ: Nguyễn Văn A"), 
+            ("Tuổi", "Ví dụ: 35"), 
+            ("Giới tính", "Ví dụ: Nam / Nữ"), 
+            ("Liên hệ", "Ví dụ: 0912345678"), 
+            ("Khám lần cuối", "Ví dụ: 2026-04-20")
         ]
         
         for field, placeholder in fields:
             frame = ctk.CTkFrame(dialog, fg_color="transparent")
             frame.pack(fill="x", padx=40, pady=8)
             
-            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=80, anchor="w")
+            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=90, anchor="w")
             lbl.pack(side="left")
             
             ent = ctk.CTkEntry(frame, width=220, border_color=BORDER_COLOR, placeholder_text=placeholder)
@@ -444,14 +523,18 @@ class HealthcareApp:
             entries[field] = ent
             
         def save_patient():
-            name = entries["Name"].get()
-            age = entries["Age"].get()
-            gender = entries["Gender"].get()
-            contact = entries["Contact"].get()
-            last_visit = entries["Last Visit"].get()
+            name = entries["Họ tên"].get().strip()
+            age = entries["Tuổi"].get().strip()
+            gender = entries["Giới tính"].get().strip()
+            contact = entries["Liên hệ"].get().strip()
+            last_visit = entries["Khám lần cuối"].get().strip()
             
             if not name or not age:
-                messagebox.showerror("Error", "Name and Age are required fields!", parent=dialog)
+                messagebox.showerror("Lỗi", "Họ tên và Tuổi là bắt buộc!", parent=dialog)
+                return
+                
+            if not age.isdigit():
+                messagebox.showerror("Lỗi", "Tuổi phải là một số!", parent=dialog)
                 return
                 
             # Lưu vào CSDL
@@ -459,111 +542,112 @@ class HealthcareApp:
             dialog.destroy()
             
             # Tải lại trang để hiện dữ liệu mới
-            messagebox.showinfo("Success", "Patient added successfully!")
+            messagebox.showinfo("Thành công", "Đã thêm bệnh nhân thành công!")
             self.page_patients()
             
         save_btn = ctk.CTkButton(
-            dialog, text="Save Patient", fg_color="#16a34a", hover_color="#15803d", 
+            dialog, text="Lưu Bệnh nhân", fg_color="#16a34a", hover_color="#15803d", 
             font=("Segoe UI", 15, "bold"), height=40, command=save_patient
         )
         save_btn.pack(pady=35)
 
     def page_doctors(self):
         self.clear_content()
-        self.set_header("Doctors", "View and manage doctor directory")
+        self.set_header("Bác sĩ", "Danh sách và quản lý bác sĩ")
 
         # Action Bar
         action_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
         action_frame.pack(fill="x", pady=(0, 15))
         
-        del_btn = ctk.CTkButton(
-            action_frame, text="🗑️ Delete Doctor", font=("Segoe UI", 14, "bold"),
-            fg_color="#ef4444", hover_color="#dc2626", corner_radius=8,
-            command=self.show_delete_doctor_dialog
-        )
-        del_btn.pack(side="right", padx=(10, 0))
+        if getattr(self, 'current_role', 'patient') == 'admin':
+            del_btn = ctk.CTkButton(
+                action_frame, text="🗑️ Xóa Bác sĩ", font=("Segoe UI", 14, "bold"),
+                fg_color="#ef4444", hover_color="#dc2626", corner_radius=8,
+                command=self.show_delete_doctor_dialog
+            )
+            del_btn.pack(side="right", padx=(10, 0))
 
-        add_btn = ctk.CTkButton(
-            action_frame, text="➕ Add Doctor", font=("Segoe UI", 14, "bold"),
-            fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
-            command=self.show_add_doctor_dialog
-        )
-        add_btn.pack(side="right")
+            add_btn = ctk.CTkButton(
+                action_frame, text="➕ Thêm Bác sĩ", font=("Segoe UI", 14, "bold"),
+                fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
+                command=self.show_add_doctor_dialog
+            )
+            add_btn.pack(side="right")
 
         frame = ctk.CTkFrame(self.content_area, fg_color=SURFACE_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
         frame.pack(fill="both", expand=True)
 
-        columns = ["Name", "Specialty", "Experience", "Contact", "Status"]
+        columns = ["Họ tên", "Chuyên khoa", "Kinh nghiệm", "Liên hệ", "Trạng thái"]
         data = database.get_doctors()
         self.create_custom_table(frame, columns, data)
 
     def show_add_doctor_dialog(self):
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Add New Doctor")
+        dialog.title("Thêm Bác sĩ mới")
         dialog.geometry("420x550")
         dialog.configure(fg_color=BG_COLOR)
         dialog.grab_set()
         dialog.focus()
         
-        title = ctk.CTkLabel(dialog, text="Doctor Information", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
+        title = ctk.CTkLabel(dialog, text="Thông tin Bác sĩ", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
         title.pack(pady=(25, 15))
         
         entries = {}
         fields = [
-            ("Name", "e.g. Dr. John Doe"), 
-            ("Specialty", "e.g. Cardiology"), 
-            ("Experience", "e.g. 10 years"), 
-            ("Contact", "e.g. 555-0199"), 
-            ("Status", ["Available", "On Leave"])
+            ("Họ tên", "Ví dụ: BS. Trần Thanh Tâm"), 
+            ("Chuyên khoa", "Ví dụ: Tim mạch"), 
+            ("Kinh nghiệm", "Ví dụ: 10 năm"), 
+            ("Liên hệ", "Ví dụ: 0988111222"), 
+            ("Trạng thái", ["Sẵn sàng", "Nghỉ phép"])
         ]
         
         for field, config in fields:
             frame = ctk.CTkFrame(dialog, fg_color="transparent")
             frame.pack(fill="x", padx=40, pady=8)
             
-            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=80, anchor="w")
+            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=90, anchor="w")
             lbl.pack(side="left")
             
-            if field == "Status":
+            if field == "Trạng thái":
                 ent = ctk.CTkOptionMenu(frame, values=config, width=220, fg_color="#f8fafc", text_color=TEXT_MAIN, button_color=PRIMARY_COLOR)
-                ent.set("Available")
+                ent.set("Sẵn sàng")
             else:
                 ent = ctk.CTkEntry(frame, width=220, border_color=BORDER_COLOR, placeholder_text=config)
             ent.pack(side="right", fill="x", expand=True)
             entries[field] = ent
             
         def save_doctor():
-            name = entries["Name"].get()
-            specialty = entries["Specialty"].get()
-            experience = entries["Experience"].get()
-            contact = entries["Contact"].get()
-            status = entries["Status"].get()
+            name = entries["Họ tên"].get().strip()
+            specialty = entries["Chuyên khoa"].get().strip()
+            experience = entries["Kinh nghiệm"].get().strip()
+            contact = entries["Liên hệ"].get().strip()
+            status = entries["Trạng thái"].get()
             
             if not name or not specialty:
-                messagebox.showerror("Error", "Name and Specialty are required!", parent=dialog)
+                messagebox.showerror("Lỗi", "Tên và Chuyên khoa là bắt buộc!", parent=dialog)
                 return
                 
             database.add_doctor(name, specialty, experience, contact, status)
             dialog.destroy()
-            messagebox.showinfo("Success", "Doctor added successfully!")
+            messagebox.showinfo("Thành công", "Đã thêm bác sĩ thành công!")
             self.page_doctors()
             
-        save_btn = ctk.CTkButton(dialog, text="Save Doctor", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_doctor)
+        save_btn = ctk.CTkButton(dialog, text="Lưu Bác sĩ", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_doctor)
         save_btn.pack(pady=35)
 
     def show_delete_doctor_dialog(self):
         doctors = database.get_doctor_names()
         if not doctors:
-            messagebox.showinfo("Info", "No doctors found to delete.")
+            messagebox.showinfo("Thông báo", "Không có bác sĩ nào để xóa.")
             return
 
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Delete Doctor")
+        dialog.title("Xóa Bác sĩ")
         dialog.geometry("350x250")
         dialog.configure(fg_color=BG_COLOR)
         dialog.grab_set()
         
-        title = ctk.CTkLabel(dialog, text="Select Doctor to Delete", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
+        title = ctk.CTkLabel(dialog, text="Chọn Bác sĩ cần xóa", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
         title.pack(pady=20)
         
         combo = ctk.CTkOptionMenu(dialog, values=doctors, width=250)
@@ -574,67 +658,87 @@ class HealthcareApp:
             if selected:
                 database.delete_doctor(selected)
                 dialog.destroy()
-                messagebox.showinfo("Success", f"Doctor '{selected}' deleted.")
+                messagebox.showinfo("Thành công", f"Đã xóa bác sĩ '{selected}'.")
                 self.page_doctors()
                 
-        btn = ctk.CTkButton(dialog, text="Confirm Delete", fg_color="#ef4444", hover_color="#dc2626", font=("Segoe UI", 14, "bold"), command=confirm_delete)
+        btn = ctk.CTkButton(dialog, text="Xác nhận xóa", fg_color="#ef4444", hover_color="#dc2626", font=("Segoe UI", 14, "bold"), command=confirm_delete)
         btn.pack(pady=20)
 
     def page_appointments(self):
         self.clear_content()
-        self.set_header("Appointments", "Schedule and track appointments")
+        self.set_header("Lịch hẹn", "Quản lý và đặt lịch hẹn khám")
 
         # Action Bar
         action_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
         action_frame.pack(fill="x", pady=(0, 15))
 
         add_btn = ctk.CTkButton(
-            action_frame, text="📅 Book Appointment", font=("Segoe UI", 14, "bold"),
+            action_frame, text="📅 Đặt lịch khám", font=("Segoe UI", 14, "bold"),
             fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
             command=self.show_book_appointment_dialog
         )
         add_btn.pack(side="right")
+        
+        if getattr(self, 'current_role', 'patient') in ['admin', 'doctor']:
+            del_btn = ctk.CTkButton(
+                action_frame, text="🗑️ Xóa Lịch hẹn", font=("Segoe UI", 14, "bold"),
+                fg_color="#ef4444", hover_color="#dc2626", corner_radius=8,
+                command=self.show_delete_appointment_dialog
+            )
+            del_btn.pack(side="right", padx=(10, 10))
+
+            upd_btn = ctk.CTkButton(
+                action_frame, text="✏️ Cập nhật/Hủy", font=("Segoe UI", 14, "bold"),
+                fg_color="#f59e0b", hover_color="#d97706", corner_radius=8,
+                command=self.show_update_appointment_dialog
+            )
+            upd_btn.pack(side="right")
 
         frame = ctk.CTkFrame(self.content_area, fg_color=SURFACE_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
         frame.pack(fill="both", expand=True)
 
-        columns = ["Patient", "Doctor", "Date", "Type", "Status"]
+        columns = ["Bệnh nhân", "Bác sĩ", "Ngày", "Giờ", "Loại khám", "Trạng thái"]
         data = database.get_appointments()
         self.create_custom_table(frame, columns, data)
 
     def show_book_appointment_dialog(self):
         patients = database.get_patient_names()
-        doctors = database.get_doctor_names()
+        doctors = database.get_doctor_names(only_available=True)
         
         if not patients or not doctors:
-            messagebox.showwarning("Warning", "You need at least one patient and one doctor to book an appointment.")
+            messagebox.showwarning("Cảnh báo", "Cần có ít nhất một bệnh nhân và một bác sĩ Sẵn sàng để đặt lịch.")
             return
 
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Book Appointment")
+        dialog.title("Đặt lịch khám")
         dialog.geometry("420x550")
         dialog.configure(fg_color=BG_COLOR)
         dialog.grab_set()
         dialog.focus()
         
-        title = ctk.CTkLabel(dialog, text="Appointment Details", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
+        title = ctk.CTkLabel(dialog, text="Chi tiết lịch hẹn", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
         title.pack(pady=(25, 15))
+        
+        import datetime
+        today = datetime.date.today()
+        dates = [(today + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14)]
+        times = ["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"]
         
         entries = {}
         fields = [
-            ("Patient", patients), 
-            ("Doctor", doctors), 
-            ("Date", "e.g. 2026-04-20"), 
-            ("Time", "e.g. 09:00 AM"),
-            ("Type", "e.g. Checkup"),
-            ("Status", ["Scheduled", "In Progress", "Completed"])
+            ("Bệnh nhân", patients), 
+            ("Bác sĩ", doctors), 
+            ("Ngày", dates), 
+            ("Giờ", times),
+            ("Loại khám", ["Khám định kỳ", "Tư vấn", "Tái khám", "Điều trị", "Cấp cứu"]),
+            ("Trạng thái", ["Đã lên lịch", "Đang tiến hành", "Hoàn thành"])
         ]
         
         for field, config in fields:
             frame = ctk.CTkFrame(dialog, fg_color="transparent")
             frame.pack(fill="x", padx=40, pady=8)
             
-            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=80, anchor="w")
+            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=90, anchor="w")
             lbl.pack(side="left")
             
             if isinstance(config, list):
@@ -646,35 +750,356 @@ class HealthcareApp:
             entries[field] = ent
             
         def save_appointment():
-            patient = entries["Patient"].get()
-            doctor = entries["Doctor"].get()
-            date = entries["Date"].get()
-            time = entries["Time"].get()
-            app_type = entries["Type"].get()
-            status = entries["Status"].get()
+            patient = entries["Bệnh nhân"].get()
+            doctor = entries["Bác sĩ"].get()
+            date = entries["Ngày"].get().strip()
+            time = entries["Giờ"].get().strip()
+            app_type = entries["Loại khám"].get().strip()
+            status = entries["Trạng thái"].get()
             
             if not date or not time:
-                messagebox.showerror("Error", "Date and Time are required!", parent=dialog)
+                messagebox.showerror("Lỗi", "Ngày và Giờ là bắt buộc!", parent=dialog)
+                return
+                
+            import re
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+                messagebox.showerror("Lỗi", "Ngày phải đúng định dạng YYYY-MM-DD!", parent=dialog)
+                return
+                
+            if database.check_appointment_conflict(doctor, date, time):
+                messagebox.showerror(
+                    "Trùng lịch", 
+                    f"Trùng lịch! {doctor} đã có lịch hẹn khác vào lúc {time} ngày {date}.", 
+                    parent=dialog
+                )
                 return
                 
             database.add_appointment(patient, doctor, date, time, app_type, status)
             dialog.destroy()
-            messagebox.showinfo("Success", "Appointment booked successfully!")
+            messagebox.showinfo("Thành công", "Đã đặt lịch thành công!")
             self.page_appointments()
             
-        save_btn = ctk.CTkButton(dialog, text="Confirm Booking", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_appointment)
+        save_btn = ctk.CTkButton(dialog, text="Xác nhận đặt lịch", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_appointment)
+        save_btn.pack(pady=30)
+
+    def show_update_appointment_dialog(self):
+        apps = database.get_appointment_options()
+        if not apps:
+            messagebox.showinfo("Thông báo", "Không có lịch hẹn nào.")
+            return
+
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Cập nhật / Hủy Lịch hẹn")
+        dialog.geometry("400x350")
+        dialog.configure(fg_color=BG_COLOR)
+        dialog.grab_set()
+        
+        title = ctk.CTkLabel(dialog, text="Chọn Lịch hẹn", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
+        title.pack(pady=20)
+        
+        combo = ctk.CTkOptionMenu(dialog, values=apps, width=350)
+        combo.pack(pady=10)
+        
+        status_label = ctk.CTkLabel(dialog, text="Trạng thái mới:", font=("Segoe UI", 14, "bold"), text_color=TEXT_MAIN)
+        status_label.pack(pady=(15, 5))
+        
+        status_combo = ctk.CTkOptionMenu(dialog, values=["Đã lên lịch", "Đang tiến hành", "Hoàn thành", "Đã hủy"], width=200, fg_color="#f8fafc", text_color=TEXT_MAIN, button_color=PRIMARY_COLOR)
+        status_combo.pack(pady=5)
+        
+        def confirm_update():
+            selected = combo.get()
+            new_status = status_combo.get()
+            if selected:
+                try:
+                    app_id = int(selected.split("]")[0].replace("[", ""))
+                    database.update_appointment_status(app_id, new_status)
+                    dialog.destroy()
+                    messagebox.showinfo("Thành công", "Đã cập nhật trạng thái lịch hẹn.")
+                    self.page_appointments()
+                except:
+                    messagebox.showerror("Lỗi", "Không thể cập nhật.")
+                
+        btn = ctk.CTkButton(dialog, text="Xác nhận", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 14, "bold"), command=confirm_update)
+        btn.pack(pady=20)
+
+    def show_delete_appointment_dialog(self):
+        apps = database.get_appointment_options()
+        if not apps:
+            messagebox.showinfo("Thông báo", "Không có lịch hẹn nào.")
+            return
+
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Xóa Lịch hẹn")
+        dialog.geometry("400x250")
+        dialog.configure(fg_color=BG_COLOR)
+        dialog.grab_set()
+        
+        title = ctk.CTkLabel(dialog, text="Chọn Lịch hẹn cần xóa", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
+        title.pack(pady=20)
+        
+        combo = ctk.CTkOptionMenu(dialog, values=apps, width=350)
+        combo.pack(pady=10)
+        
+        def confirm_delete():
+            selected = combo.get()
+            if selected:
+                try:
+                    app_id = int(selected.split("]")[0].replace("[", ""))
+                    database.delete_appointment(app_id)
+                    dialog.destroy()
+                    messagebox.showinfo("Thành công", "Đã xóa lịch hẹn.")
+                    self.page_appointments()
+                except:
+                    messagebox.showerror("Lỗi", "Không thể xóa.")
+                
+        btn = ctk.CTkButton(dialog, text="Xác nhận xóa", fg_color="#ef4444", hover_color="#dc2626", font=("Segoe UI", 14, "bold"), command=confirm_delete)
+        btn.pack(pady=20)
+
+    def page_medical_records(self):
+        self.clear_content()
+        self.set_header("Hồ sơ bệnh án", "Tra cứu và quản lý hồ sơ y tế")
+
+        action_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        action_frame.pack(fill="x", pady=(0, 15))
+        
+        self.record_search_var = tk.StringVar()
+        search_entry = ctk.CTkEntry(
+            action_frame, placeholder_text="Tìm theo tên bệnh nhân...", width=250, 
+            textvariable=self.record_search_var, border_color=BORDER_COLOR
+        )
+        search_entry.pack(side="left", padx=(0, 10))
+        
+        search_btn = ctk.CTkButton(
+            action_frame, text="🔍 Tìm kiếm", font=("Segoe UI", 13, "bold"), width=100,
+            command=self.refresh_records_table
+        )
+        search_btn.pack(side="left")
+
+        if getattr(self, 'current_role', 'patient') in ['admin', 'doctor']:
+            add_btn = ctk.CTkButton(
+                action_frame, text="➕ Thêm Bệnh án", font=("Segoe UI", 14, "bold"),
+                fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
+                command=self.show_add_record_dialog
+            )
+            add_btn.pack(side="right")
+            
+            export_btn = ctk.CTkButton(
+                action_frame, text="📥 Xuất CSV", font=("Segoe UI", 14, "bold"),
+                fg_color="#10b981", hover_color="#059669", corner_radius=8,
+                command=self.export_records_csv
+            )
+            export_btn.pack(side="right", padx=(0, 10))
+
+        self.records_table_frame = ctk.CTkFrame(self.content_area, fg_color=SURFACE_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
+        self.records_table_frame.pack(fill="both", expand=True)
+
+        self.refresh_records_table()
+
+    def refresh_records_table(self):
+        for widget in self.records_table_frame.winfo_children():
+            widget.destroy()
+            
+        query = self.record_search_var.get()
+        columns = ["Bệnh nhân", "Bác sĩ", "Ngày khám", "Chẩn đoán", "Đơn thuốc"]
+        data = database.get_medical_records(query)
+        self.create_custom_table(self.records_table_frame, columns, data)
+
+    def export_records_csv(self):
+        data = database.get_medical_records() 
+        if not data:
+            messagebox.showinfo("Export", "Không có dữ liệu để xuất.")
+            return
+            
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Xuất Dữ liệu Bệnh án",
+            initialfile="du_lieu_benh_an.csv"
+        )
+        if filepath:
+            try:
+                with open(filepath, mode='w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Bệnh nhân", "Bác sĩ", "Ngày khám", "Chẩn đoán", "Đơn thuốc"])
+                    writer.writerows(data)
+                messagebox.showinfo("Thành công", "Đã xuất dữ liệu thành công!")
+            except Exception as e:
+                messagebox.showerror("Lỗi", f"Không thể xuất dữ liệu: {e}")
+
+    def show_add_record_dialog(self):
+        patients = database.get_patient_names()
+        doctors = database.get_doctor_names()
+        
+        if not patients or not doctors:
+            messagebox.showwarning("Cảnh báo", "Cần có ít nhất một bệnh nhân và một bác sĩ.")
+            return
+
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Thêm Hồ sơ Bệnh án")
+        dialog.geometry("450x550")
+        dialog.configure(fg_color=BG_COLOR)
+        dialog.grab_set()
+        dialog.focus()
+        
+        title = ctk.CTkLabel(dialog, text="Chi tiết Bệnh án", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
+        title.pack(pady=(25, 15))
+        
+        import datetime
+        today = datetime.date.today().strftime("%Y-%m-%d")
+        
+        entries = {}
+        fields = [
+            ("Bệnh nhân", patients), 
+            ("Bác sĩ", doctors), 
+            ("Ngày khám", today), 
+            ("Chẩn đoán", "Ví dụ: Viêm họng hạt"),
+            ("Đơn thuốc", "Ví dụ: Amoxicillin 500mg, 2 viên/ngày")
+        ]
+        
+        for field, config in fields:
+            frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            frame.pack(fill="x", padx=40, pady=8)
+            
+            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=90, anchor="w")
+            lbl.pack(side="left")
+            
+            if isinstance(config, list):
+                ent = ctk.CTkOptionMenu(frame, values=config, width=220, fg_color="#f8fafc", text_color=TEXT_MAIN, button_color=PRIMARY_COLOR)
+                ent.set(config[0])
+            else:
+                ent = ctk.CTkEntry(frame, width=220, border_color=BORDER_COLOR, placeholder_text=config if isinstance(config, str) else "")
+                if field == "Ngày khám":
+                    ent.insert(0, config)
+            ent.pack(side="right", fill="x", expand=True)
+            entries[field] = ent
+            
+        def save_record():
+            patient = entries["Bệnh nhân"].get()
+            doctor = entries["Bác sĩ"].get()
+            date = entries["Ngày khám"].get().strip()
+            diagnosis = entries["Chẩn đoán"].get().strip()
+            prescription = entries["Đơn thuốc"].get().strip()
+            
+            if not date or not diagnosis:
+                messagebox.showerror("Lỗi", "Ngày khám và Chẩn đoán là bắt buộc!", parent=dialog)
+                return
+                
+            database.add_medical_record(patient, doctor, date, diagnosis, prescription)
+            dialog.destroy()
+            messagebox.showinfo("Thành công", "Đã thêm bệnh án thành công!")
+            self.page_medical_records()
+            
+        save_btn = ctk.CTkButton(dialog, text="Lưu Bệnh án", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_record)
         save_btn.pack(pady=30)
 
     def page_services(self):
         self.clear_content()
-        self.set_header("Services", "Manage healthcare services and pricing")
+        self.set_header("Dịch vụ", "Bảng giá và dịch vụ y tế")
+
+        action_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        action_frame.pack(fill="x", pady=(0, 15))
+        
+        if getattr(self, 'current_role', 'patient') in ['admin', 'doctor']:
+            del_btn = ctk.CTkButton(
+                action_frame, text="🗑️ Xóa Dịch vụ", font=("Segoe UI", 14, "bold"),
+                fg_color="#ef4444", hover_color="#dc2626", corner_radius=8,
+                command=self.show_delete_service_dialog
+            )
+            del_btn.pack(side="right", padx=(10, 0))
+
+            add_btn = ctk.CTkButton(
+                action_frame, text="➕ Thêm Dịch vụ", font=("Segoe UI", 14, "bold"),
+                fg_color=PRIMARY_COLOR, hover_color="#1d4ed8", corner_radius=8,
+                command=self.show_add_service_dialog
+            )
+            add_btn.pack(side="right")
 
         frame = ctk.CTkFrame(self.content_area, fg_color=SURFACE_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
         frame.pack(fill="both", expand=True)
 
-        columns = ["Service", "Category", "Price", "Duration"]
+        columns = ["Tên dịch vụ", "Danh mục", "Giá", "Thời lượng"]
         data = database.get_services()
         self.create_custom_table(frame, columns, data)
+
+    def show_add_service_dialog(self):
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Thêm Dịch vụ mới")
+        dialog.geometry("400x500")
+        dialog.configure(fg_color=BG_COLOR)
+        dialog.grab_set()
+        
+        title = ctk.CTkLabel(dialog, text="Thông tin Dịch vụ", font=("Segoe UI", 20, "bold"), text_color=TEXT_MAIN)
+        title.pack(pady=(25, 15))
+        
+        entries = {}
+        fields = [
+            ("Tên dịch vụ", "Ví dụ: Xét nghiệm máu"), 
+            ("Danh mục", ["Cơ bản", "Xét nghiệm", "Hình ảnh", "Điều trị"]),
+            ("Giá", "Ví dụ: 300,000đ"), 
+            ("Thời lượng", "Ví dụ: 15 phút")
+        ]
+        
+        for field, config in fields:
+            frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            frame.pack(fill="x", padx=40, pady=8)
+            
+            lbl = ctk.CTkLabel(frame, text=field, font=("Segoe UI", 13, "bold"), text_color=TEXT_MAIN, width=90, anchor="w")
+            lbl.pack(side="left")
+            
+            if isinstance(config, list):
+                ent = ctk.CTkOptionMenu(frame, values=config, width=200, fg_color="#f8fafc", text_color=TEXT_MAIN, button_color=PRIMARY_COLOR)
+                ent.set(config[0])
+            else:
+                ent = ctk.CTkEntry(frame, width=200, border_color=BORDER_COLOR, placeholder_text=config)
+            ent.pack(side="right", fill="x", expand=True)
+            entries[field] = ent
+            
+        def save_service():
+            name = entries["Tên dịch vụ"].get().strip()
+            category = entries["Danh mục"].get()
+            price = entries["Giá"].get().strip()
+            duration = entries["Thời lượng"].get().strip()
+            
+            if not name or not price:
+                messagebox.showerror("Lỗi", "Tên dịch vụ và Giá là bắt buộc!", parent=dialog)
+                return
+                
+            database.add_service(name, category, price, duration)
+            dialog.destroy()
+            messagebox.showinfo("Thành công", "Đã thêm dịch vụ thành công!")
+            self.page_services()
+            
+        save_btn = ctk.CTkButton(dialog, text="Lưu Dịch vụ", fg_color="#16a34a", hover_color="#15803d", font=("Segoe UI", 15, "bold"), height=40, command=save_service)
+        save_btn.pack(pady=30)
+
+    def show_delete_service_dialog(self):
+        services = database.get_service_names()
+        if not services:
+            messagebox.showinfo("Thông báo", "Không có dịch vụ nào.")
+            return
+
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Xóa Dịch vụ")
+        dialog.geometry("350x250")
+        dialog.configure(fg_color=BG_COLOR)
+        dialog.grab_set()
+        
+        title = ctk.CTkLabel(dialog, text="Chọn Dịch vụ cần xóa", font=("Segoe UI", 16, "bold"), text_color=TEXT_MAIN)
+        title.pack(pady=20)
+        
+        combo = ctk.CTkOptionMenu(dialog, values=services, width=250)
+        combo.pack(pady=10)
+        
+        def confirm_delete():
+            selected = combo.get()
+            if selected:
+                database.delete_service(selected)
+                dialog.destroy()
+                messagebox.showinfo("Thành công", f"Đã xóa dịch vụ '{selected}'.")
+                self.page_services()
+                
+        btn = ctk.CTkButton(dialog, text="Xác nhận xóa", fg_color="#ef4444", hover_color="#dc2626", font=("Segoe UI", 14, "bold"), command=confirm_delete)
+        btn.pack(pady=20)
 
 if __name__ == "__main__":
     root = ctk.CTk()
